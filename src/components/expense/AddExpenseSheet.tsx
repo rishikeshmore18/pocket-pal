@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+interface Expense {
+  id: string;
+  expense_name: string;
+  category: string;
+  amount: number;
+  date_time: string;
+  payment_method: string;
+  notes: string | null;
+}
+
 interface AddExpenseSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingExpense?: Expense | null;
 }
 
-export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetProps) {
+export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: AddExpenseSheetProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<string>("other");
@@ -24,6 +35,19 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetP
   const [notes, setNotes] = useState("");
   const [showNotes, setShowNotes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editingExpense && isOpen) {
+      setAmount(editingExpense.amount.toString());
+      setCategory(editingExpense.category);
+      setPaymentMethod(editingExpense.payment_method);
+      setExpenseName(editingExpense.expense_name);
+      setNotes(editingExpense.notes || "");
+      setShowNotes(!!editingExpense.notes);
+    } else if (isOpen) {
+      resetForm();
+    }
+  }, [editingExpense, isOpen]);
 
   const handleSubmit = async () => {
     if (!user) {
@@ -43,24 +67,50 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetP
 
     setIsSubmitting(true);
 
-    const { error } = await supabase.from("expenses").insert({
-      user_id: user.id,
-      expense_name: expenseName.trim(),
-      category: category as any,
-      amount: parseFloat(amount),
-      payment_method: paymentMethod as any,
-      notes: notes.trim() || null,
-    });
+    if (editingExpense) {
+      // Update existing expense
+      const { error } = await supabase
+        .from("expenses")
+        .update({
+          expense_name: expenseName.trim(),
+          category: category as any,
+          amount: parseFloat(amount),
+          payment_method: paymentMethod as any,
+          notes: notes.trim() || null,
+        })
+        .eq("id", editingExpense.id);
 
-    setIsSubmitting(false);
+      setIsSubmitting(false);
 
-    if (error) {
-      toast.error("Failed to add expense");
-      console.error(error);
-      return;
+      if (error) {
+        toast.error("Failed to update expense");
+        console.error(error);
+        return;
+      }
+
+      toast.success("Expense updated successfully");
+    } else {
+      // Insert new expense
+      const { error } = await supabase.from("expenses").insert({
+        user_id: user.id,
+        expense_name: expenseName.trim(),
+        category: category as any,
+        amount: parseFloat(amount),
+        payment_method: paymentMethod as any,
+        notes: notes.trim() || null,
+      });
+
+      setIsSubmitting(false);
+
+      if (error) {
+        toast.error("Failed to add expense");
+        console.error(error);
+        return;
+      }
+
+      toast.success("Expense added successfully");
     }
 
-    toast.success("Expense added successfully");
     resetForm();
     onSuccess();
     onClose();
@@ -92,7 +142,9 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetP
           <button onClick={onClose} className="text-muted-foreground p-2 -ml-2">
             <X className="w-6 h-6" />
           </button>
-          <h2 className="text-lg font-semibold">Add Expense</h2>
+          <h2 className="text-lg font-semibold">
+            {editingExpense ? "Edit Expense" : "Add Expense"}
+          </h2>
           <div className="w-10" />
         </div>
 
@@ -106,7 +158,7 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetP
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="amount-input max-w-[200px]"
+                className="amount-input max-w-[200px] text-foreground"
                 autoFocus
               />
             </div>
@@ -190,7 +242,13 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess }: AddExpenseSheetP
             disabled={isSubmitting}
             className="w-full h-14 text-base font-semibold"
           >
-            {isSubmitting ? "Adding..." : "Save Expense"}
+            {isSubmitting
+              ? editingExpense
+                ? "Updating..."
+                : "Adding..."
+              : editingExpense
+                ? "Update Expense"
+                : "Save Expense"}
           </Button>
         </div>
       </div>

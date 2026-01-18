@@ -7,15 +7,18 @@ import {
   HelpCircle, 
   LogOut,
   ChevronRight,
-  Moon
+  Moon,
+  Sun
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/components/ThemeProvider";
 import { toast } from "sonner";
 
 export default function More() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     await signOut();
@@ -85,15 +88,25 @@ export default function More() {
         })}
 
         {/* Theme Toggle */}
-        <div className="w-full flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-4 p-4 bg-card rounded-xl border border-border touch-feedback text-left"
+        >
           <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <Moon className="w-5 h-5 text-muted-foreground" />
+            {theme === "dark" ? (
+              <Moon className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <Sun className="w-5 h-5 text-muted-foreground" />
+            )}
           </div>
           <div className="flex-1">
-            <p className="font-medium">Dark Mode</p>
-            <p className="text-sm text-muted-foreground">Always on</p>
+            <p className="font-medium">Theme</p>
+            <p className="text-sm text-muted-foreground">
+              {theme === "dark" ? "Dark Mode" : "Light Mode"}
+            </p>
           </div>
-        </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        </button>
 
         {/* Logout */}
         <button

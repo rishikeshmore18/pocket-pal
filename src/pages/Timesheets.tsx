@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Clock, DollarSign, Trash2 } from "lucide-react";
+import { Plus, Clock, DollarSign, Trash2, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,12 +28,14 @@ export default function Timesheets() {
   const [isLoading, setIsLoading] = useState(true);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state
   const [jobName, setJobName] = useState("");
   const [hoursWorked, setHoursWorked] = useState("");
   const [hourlyPay, setHourlyPay] = useState("");
   const [workDate, setWorkDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [jobNameSelect, setJobNameSelect] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -64,10 +67,21 @@ export default function Timesheets() {
     }
   }, [user]);
 
+  const resetForm = () => {
+    setJobName("");
+    setJobNameSelect("");
+    setHoursWorked("");
+    setHourlyPay("");
+    setWorkDate(format(new Date(), "yyyy-MM-dd"));
+    setEditingId(null);
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
 
-    if (!jobName.trim() || !hoursWorked || !hourlyPay) {
+    const finalJobName = jobNameSelect === "custom" ? jobName.trim() : jobNameSelect.trim();
+    
+    if (!finalJobName || !hoursWorked || !hourlyPay) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -77,28 +91,64 @@ export default function Timesheets() {
     const date = new Date(workDate);
     const dayOfWeek = format(date, "EEEE");
 
-    const { error } = await supabase.from("timesheets").insert({
-      user_id: user.id,
-      job_name: jobName.trim(),
-      hours_worked: parseFloat(hoursWorked),
-      hourly_pay: parseFloat(hourlyPay),
-      work_date: workDate,
-      day_of_week: dayOfWeek,
-    });
+    if (editingId) {
+      // Update existing timesheet
+      const { error } = await supabase
+        .from("timesheets")
+        .update({
+          job_name: finalJobName,
+          hours_worked: parseFloat(hoursWorked),
+          hourly_pay: parseFloat(hourlyPay),
+          work_date: workDate,
+          day_of_week: dayOfWeek,
+        })
+        .eq("id", editingId);
 
-    setIsSubmitting(false);
+      setIsSubmitting(false);
 
-    if (error) {
-      toast.error("Failed to add timesheet");
-      console.error(error);
+      if (error) {
+        toast.error("Failed to update timesheet");
+        console.error(error);
+      } else {
+        toast.success("Timesheet updated");
+        resetForm();
+        setShowAdd(false);
+        fetchTimesheets();
+      }
     } else {
-      toast.success("Timesheet added");
-      setJobName("");
-      setHoursWorked("");
-      setHourlyPay("");
-      setShowAdd(false);
-      fetchTimesheets();
+      // Insert new timesheet
+      const { error } = await supabase.from("timesheets").insert({
+        user_id: user.id,
+        job_name: finalJobName,
+        hours_worked: parseFloat(hoursWorked),
+        hourly_pay: parseFloat(hourlyPay),
+        work_date: workDate,
+        day_of_week: dayOfWeek,
+      });
+
+      setIsSubmitting(false);
+
+      if (error) {
+        toast.error("Failed to add timesheet");
+        console.error(error);
+      } else {
+        toast.success("Timesheet added");
+        resetForm();
+        setShowAdd(false);
+        fetchTimesheets();
+      }
     }
+  };
+
+  const handleEdit = (timesheet: Timesheet) => {
+    setEditingId(timesheet.id);
+    const isJobInList = uniqueJobNames.includes(timesheet.job_name);
+    setJobName(timesheet.job_name);
+    setJobNameSelect(isJobInList ? timesheet.job_name : "custom");
+    setHoursWorked(timesheet.hours_worked.toString());
+    setHourlyPay(timesheet.hourly_pay.toString());
+    setWorkDate(timesheet.work_date);
+    setShowAdd(true);
   };
 
   const deleteTimesheet = async (id: string) => {
@@ -118,6 +168,9 @@ export default function Timesheets() {
       minimumFractionDigits: 2,
     }).format(amount);
   };
+
+  // Get unique job names from existing timesheets
+  const uniqueJobNames = Array.from(new Set(timesheets.map((ts) => ts.job_name))).sort();
 
   // Calculate totals
   const now = new Date();
@@ -178,15 +231,42 @@ export default function Timesheets() {
           </div>
         </div>
 
-        {/* Add Form */}
+        {/* Add/Edit Form */}
         {showAdd && (
           <div className="bg-card rounded-2xl border border-border p-4 space-y-4 animate-scale-in">
-            <Input
-              placeholder="Job name"
-              value={jobName}
-              onChange={(e) => setJobName(e.target.value)}
-              className="touch-input"
-            />
+            <div>
+              <Select
+                value={jobNameSelect || (editingId && jobName ? "custom" : "")}
+                onValueChange={(value) => {
+                  setJobNameSelect(value);
+                  if (value !== "custom") {
+                    setJobName(value);
+                  } else {
+                    setJobName(editingId ? jobName : "");
+                  }
+                }}
+              >
+                <SelectTrigger className="touch-input h-14">
+                  <SelectValue placeholder="Select job name or enter custom" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueJobNames.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom (enter new)</SelectItem>
+                </SelectContent>
+              </Select>
+              {jobNameSelect === "custom" && (
+                <Input
+                  placeholder="Enter custom job name"
+                  value={jobName}
+                  onChange={(e) => setJobName(e.target.value)}
+                  className="touch-input mt-3"
+                />
+              )}
+            </div>
             <Input
               type="date"
               value={workDate}
@@ -209,13 +289,31 @@ export default function Timesheets() {
                 className="touch-input"
               />
             </div>
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full h-12"
-            >
-              {isSubmitting ? "Adding..." : "Add Entry"}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setShowAdd(false);
+                }}
+                variant="outline"
+                className="flex-1 h-12"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1 h-12"
+              >
+                {isSubmitting
+                  ? editingId
+                    ? "Updating..."
+                    : "Adding..."
+                  : editingId
+                    ? "Update Entry"
+                    : "Add Entry"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -259,6 +357,12 @@ export default function Timesheets() {
                   <span className="font-semibold text-success">
                     +{formatCurrency(Number(ts.hours_worked) * Number(ts.hourly_pay))}
                   </span>
+                  <button
+                    onClick={() => handleEdit(ts)}
+                    className="opacity-0 group-hover:opacity-100 p-2 text-primary touch-feedback"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => deleteTimesheet(ts.id)}
                     className="opacity-0 group-hover:opacity-100 p-2 text-destructive touch-feedback"

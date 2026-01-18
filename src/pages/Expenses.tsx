@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Filter, Plus, Trash2 } from "lucide-react";
+import { Filter, Plus, Trash2, Pencil } from "lucide-react";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FAB } from "@/components/expense/FAB";
@@ -24,6 +24,7 @@ export default function Expenses() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -180,6 +181,15 @@ export default function Expenses() {
                             -{formatCurrency(Number(expense.amount))}
                           </span>
                           <button
+                            onClick={() => {
+                              setEditingExpense(expense);
+                              setShowAddExpense(true);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-primary touch-feedback"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => deleteExpense(expense.id)}
                             className="opacity-0 group-hover:opacity-100 p-2 text-destructive touch-feedback"
                           >
@@ -211,11 +221,15 @@ export default function Expenses() {
       {/* FAB */}
       <FAB onClick={() => setShowAddExpense(true)} />
 
-      {/* Add Expense Sheet */}
+      {/* Add/Edit Expense Sheet */}
       <AddExpenseSheet
         isOpen={showAddExpense}
-        onClose={() => setShowAddExpense(false)}
+        onClose={() => {
+          setShowAddExpense(false);
+          setEditingExpense(null);
+        }}
         onSuccess={fetchExpenses}
+        editingExpense={editingExpense}
       />
     </AppLayout>
   );
