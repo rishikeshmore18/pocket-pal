@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Wallet, Building, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Wallet, Building, Trash2, Pencil, Check, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,9 @@ export default function Accounts() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [cashAccount, setCashAccount] = useState<CashAccount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [editingBalance, setEditingBalance] = useState<string>("");
+  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
 
   // Form state
   const [bankName, setBankName] = useState("");
@@ -136,6 +139,42 @@ export default function Accounts() {
     }
   };
 
+  const handleEditBalance = (account: BankAccount) => {
+    setEditingAccountId(account.id);
+    setEditingBalance(account.current_balance.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAccountId(null);
+    setEditingBalance("");
+  };
+
+  const handleUpdateBalance = async (accountId: string) => {
+    if (!editingBalance || isNaN(parseFloat(editingBalance))) {
+      toast.error("Please enter a valid balance");
+      return;
+    }
+
+    setIsUpdatingBalance(true);
+
+    const { error } = await supabase
+      .from("bank_accounts")
+      .update({ current_balance: parseFloat(editingBalance) })
+      .eq("id", accountId);
+
+    setIsUpdatingBalance(false);
+
+    if (error) {
+      toast.error("Failed to update balance");
+      console.error(error);
+    } else {
+      toast.success("Balance updated");
+      setEditingAccountId(null);
+      setEditingBalance("");
+      fetchAccounts();
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -219,16 +258,79 @@ export default function Accounts() {
                           <p className="text-sm text-muted-foreground capitalize">{acc.account_type}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => deleteAccount(acc.id)}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {editingAccountId === acc.id ? (
+                          <>
+                            <button
+                              onClick={() => handleUpdateBalance(acc.id)}
+                              disabled={isUpdatingBalance}
+                              className="p-2 text-success touch-feedback"
+                              title="Save"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              disabled={isUpdatingBalance}
+                              className="p-2 text-muted-foreground touch-feedback"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEditBalance(acc)}
+                              className="opacity-0 group-hover:opacity-100 p-2 text-primary touch-feedback"
+                              title="Edit balance"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteAccount(acc.id)}
+                              className="opacity-0 group-hover:opacity-100 p-2 text-destructive touch-feedback"
+                              title="Delete account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold mt-4 text-center">
-                      {formatCurrency(Number(acc.current_balance))}
-                    </p>
+                    {editingAccountId === acc.id ? (
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center gap-2 justify-center">
+                          <span className="text-2xl text-muted-foreground">$</span>
+                          <Input
+                            type="number"
+                            value={editingBalance}
+                            onChange={(e) => setEditingBalance(e.target.value)}
+                            className="text-2xl font-bold text-center border-2 border-primary focus-visible:ring-primary"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleUpdateBalance(acc.id);
+                              } else if (e.key === "Escape") {
+                                handleCancelEdit();
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
+                          onClick={() => handleUpdateBalance(acc.id)}
+                          disabled={isUpdatingBalance}
+                          className="w-full h-10"
+                          size="sm"
+                        >
+                          {isUpdatingBalance ? "Updating..." : "Save Balance"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-2xl font-bold mt-4 text-center">
+                        {formatCurrency(Number(acc.current_balance))}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
