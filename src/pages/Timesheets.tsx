@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Clock, DollarSign, Trash2, Pencil } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,7 @@ export default function Timesheets() {
 
     setIsSubmitting(true);
 
-    const date = new Date(workDate);
+    const date = parseISO(workDate);
     const dayOfWeek = format(date, "EEEE");
 
     if (editingId) {
@@ -176,7 +176,7 @@ export default function Timesheets() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthlyTimesheets = timesheets.filter(
-    (ts) => new Date(ts.work_date) >= startOfMonth
+    (ts) => parseISO(ts.work_date) >= startOfMonth
   );
   const totalMonthlyHours = monthlyTimesheets.reduce(
     (sum, ts) => sum + Number(ts.hours_worked),
@@ -350,7 +350,7 @@ export default function Timesheets() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{ts.job_name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(ts.work_date), "MMM d")} • {ts.day_of_week} • {ts.hours_worked}h
+                    {format(parseISO(ts.work_date), "MMM d")} • {ts.day_of_week} • {ts.hours_worked}h
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
