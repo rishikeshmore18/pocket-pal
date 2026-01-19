@@ -282,14 +282,14 @@ export default function Accounts() {
                           <>
                             <button
                               onClick={() => handleEditBalance(acc)}
-                              className="opacity-0 group-hover:opacity-100 p-2 text-primary touch-feedback"
+                              className="p-2 text-primary touch-feedback hover:bg-primary/10 rounded-lg transition-colors"
                               title="Edit balance"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => deleteAccount(acc.id)}
-                              className="opacity-0 group-hover:opacity-100 p-2 text-destructive touch-feedback"
+                              className="p-2 text-destructive touch-feedback hover:bg-destructive/10 rounded-lg transition-colors"
                               title="Delete account"
                             >
                               <Trash2 className="w-4 h-4" />
