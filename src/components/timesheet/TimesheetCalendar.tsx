@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, parseISO, addMonths, subMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, Check, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Clock, DollarSign, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface Timesheet {
   id: string;
@@ -19,12 +20,14 @@ interface Timesheet {
 interface TimesheetCalendarProps {
   timesheets: Timesheet[];
   onTogglePaid: (id: string, isPaid: boolean) => void;
+  onMarkDayPaid: (ids: string[], isPaid: boolean) => void;
   onSelectDay: (date: Date, timesheets: Timesheet[]) => void;
   formatCurrency: (amount: number) => string;
 }
 
-export function TimesheetCalendar({ timesheets, onTogglePaid, onSelectDay, formatCurrency }: TimesheetCalendarProps) {
+export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onSelectDay, formatCurrency }: TimesheetCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [markMode, setMarkMode] = useState<"paid" | "unpaid" | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -58,8 +61,58 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onSelectDay, forma
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const handleDayClick = (day: Date, dayTimesheets: Timesheet[]) => {
+    if (!dayTimesheets.length) return;
+    
+    if (markMode) {
+      const ids = dayTimesheets.map(ts => ts.id);
+      onMarkDayPaid(ids, markMode === "paid");
+    } else {
+      onSelectDay(day, dayTimesheets);
+    }
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border p-4">
+      {/* Mark Mode Buttons */}
+      <div className="flex gap-2 mb-4">
+        <Button
+          variant={markMode === "paid" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMarkMode(markMode === "paid" ? null : "paid")}
+          className={cn(
+            "flex-1",
+            markMode === "paid" && "bg-success hover:bg-success/90"
+          )}
+        >
+          <DollarSign className="w-4 h-4 mr-1" />
+          {markMode === "paid" ? "Tap days to mark paid" : "Mark as Paid"}
+        </Button>
+        <Button
+          variant={markMode === "unpaid" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMarkMode(markMode === "unpaid" ? null : "unpaid")}
+          className={cn(
+            "flex-1",
+            markMode === "unpaid" && "bg-warning hover:bg-warning/90 text-warning-foreground"
+          )}
+        >
+          <X className="w-4 h-4 mr-1" />
+          {markMode === "unpaid" ? "Tap days to unmark" : "Mark as Unpaid"}
+        </Button>
+      </div>
+
+      {markMode && (
+        <div className={cn(
+          "text-center text-sm py-2 px-3 rounded-lg mb-4",
+          markMode === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+        )}>
+          {markMode === "paid" 
+            ? "Tap on any day with entries to mark all as paid" 
+            : "Tap on any day with entries to mark all as unpaid"}
+        </div>
+      )}
+
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -108,14 +161,17 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onSelectDay, forma
           return (
             <button
               key={day.toISOString()}
-              onClick={() => hasEntries && onSelectDay(day, dayTimesheets)}
+              onClick={() => handleDayClick(day, dayTimesheets)}
               className={cn(
                 "aspect-square rounded-lg p-1 flex flex-col items-center justify-start transition-all relative",
                 "hover:bg-muted/50",
                 isToday && "ring-2 ring-primary",
                 hasEntries && !allPaid && "bg-warning/10",
                 hasEntries && allPaid && "bg-success/10",
-                !hasEntries && "opacity-50"
+                !hasEntries && "opacity-50",
+                markMode && hasEntries && "cursor-pointer hover:scale-105",
+                markMode === "paid" && hasEntries && !allPaid && "ring-2 ring-success/50",
+                markMode === "unpaid" && hasEntries && allPaid && "ring-2 ring-warning/50"
               )}
             >
               <span className={cn(
