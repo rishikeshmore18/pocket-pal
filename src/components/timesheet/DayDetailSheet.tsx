@@ -1,5 +1,5 @@
 import { format, parseISO } from "date-fns";
-import { Check, Clock, DollarSign } from "lucide-react";
+import { Check, Clock, DollarSign, Pencil, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,8 @@ interface DayDetailSheetProps {
   timesheets: Timesheet[];
   onTogglePaid: (id: string, isPaid: boolean) => void;
   onMarkAllPaid: (ids: string[]) => void;
+  onEdit: (timesheet: Timesheet) => void;
+  onDelete: (id: string) => void;
   formatCurrency: (amount: number) => string;
 }
 
@@ -34,6 +36,8 @@ export function DayDetailSheet({
   timesheets,
   onTogglePaid,
   onMarkAllPaid,
+  onEdit,
+  onDelete,
   formatCurrency,
 }: DayDetailSheetProps) {
   if (!selectedDate) return null;
@@ -120,16 +124,30 @@ export function DayDetailSheet({
                   </p>
                 </div>
                 
-                <div className="text-right">
+                <div className="flex items-center gap-1">
                   <span className={cn(
-                    "font-semibold",
+                    "font-semibold mr-2",
                     ts.is_paid ? "text-success" : "text-foreground"
                   )}>
                     {formatCurrency(ts.hours_worked * ts.hourly_pay)}
                   </span>
-                  {ts.is_paid && (
-                    <p className="text-xs text-success">Paid</p>
-                  )}
+                  <button
+                    onClick={() => {
+                      onEdit(ts);
+                      onOpenChange(false);
+                    }}
+                    className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                    title="Edit entry"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(ts.id)}
+                    className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                    title="Delete entry"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
