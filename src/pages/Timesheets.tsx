@@ -219,6 +219,23 @@ export default function Timesheets() {
     }
   };
 
+  const handleMarkDayPaid = async (ids: string[], isPaid: boolean) => {
+    const { error } = await supabase
+      .from("timesheets")
+      .update({ 
+        is_paid: isPaid,
+        paid_date: isPaid ? format(new Date(), "yyyy-MM-dd") : null
+      })
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to update payment status");
+    } else {
+      toast.success(isPaid ? `Marked ${ids.length} entries as paid` : `Marked ${ids.length} entries as unpaid`);
+      fetchTimesheets();
+    }
+  };
+
   const handleSelectDay = (date: Date, dayTimesheets: Timesheet[]) => {
     setSelectedDate(date);
     setSelectedDayTimesheets(dayTimesheets);
@@ -404,6 +421,7 @@ export default function Timesheets() {
           <TimesheetCalendar
             timesheets={timesheets}
             onTogglePaid={handleTogglePaid}
+            onMarkDayPaid={handleMarkDayPaid}
             onSelectDay={handleSelectDay}
             formatCurrency={formatCurrency}
           />
