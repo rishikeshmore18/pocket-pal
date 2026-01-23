@@ -465,6 +465,8 @@ export default function Timesheets() {
         timesheets={selectedDayTimesheets}
         onTogglePaid={handleTogglePaid}
         onMarkAllPaid={handleMarkAllPaid}
+        onEdit={handleEdit}
+        onDelete={deleteTimesheet}
         formatCurrency={formatCurrency}
       />
     </AppLayout>
