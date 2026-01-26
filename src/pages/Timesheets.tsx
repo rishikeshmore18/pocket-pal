@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { TimesheetCalendar } from "@/components/timesheet/TimesheetCalendar";
 import { DayDetailSheet } from "@/components/timesheet/DayDetailSheet";
 import { EarningsStats } from "@/components/timesheet/EarningsStats";
+import { cn } from "@/lib/utils";
 
 interface Timesheet {
   id: string;
@@ -503,7 +504,7 @@ export default function Timesheets() {
                   value={hoursWorked}
                   onChange={(e) => setHoursWorked(e.target.value)}
                   className="touch-input"
-                  readOnly={useTimeInput && timeFrom && timeTo}
+                  readOnly={useTimeInput && !!timeFrom && !!timeTo}
                 />
               </div>
             </div>
