@@ -36,6 +36,10 @@ export default function Timesheets() {
   const [hourlyPay, setHourlyPay] = useState("");
   const [workDate, setWorkDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [jobNameSelect, setJobNameSelect] = useState<string>("");
+  const [timeFrom, setTimeFrom] = useState<string>("");
+  const [timeTo, setTimeTo] = useState<string>("");
+  const [useTimeInput, setUseTimeInput] = useState<boolean>(false);
+  const [hourlyPaySelect, setHourlyPaySelect] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -72,18 +76,71 @@ export default function Timesheets() {
     setJobNameSelect("");
     setHoursWorked("");
     setHourlyPay("");
+    setHourlyPaySelect("");
     setWorkDate(format(new Date(), "yyyy-MM-dd"));
+    setTimeFrom("");
+    setTimeTo("");
+    setUseTimeInput(false);
     setEditingId(null);
   };
+
+  // Calculate hours from time in/out
+  const calculateHoursFromTime = (from: string, to: string): number | null => {
+    if (!from || !to) return null;
+
+    try {
+      const [fromHours, fromMinutes] = from.split(":").map(Number);
+      const [toHours, toMinutes] = to.split(":").map(Number);
+
+      const fromTime = fromHours * 60 + fromMinutes;
+      let toTime = toHours * 60 + toMinutes;
+
+      // Handle overnight shifts (e.g., 10pm to 2am = next day)
+      if (toTime < fromTime) {
+        toTime += 24 * 60; // Add 24 hours
+      }
+
+      const diffMinutes = toTime - fromTime;
+      const hours = diffMinutes / 60;
+
+      return Math.round(hours * 10) / 10; // Round to 1 decimal place
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Handle time input changes and auto-calculate hours
+  useEffect(() => {
+    if (useTimeInput && timeFrom && timeTo) {
+      const calculatedHours = calculateHoursFromTime(timeFrom, timeTo);
+      if (calculatedHours !== null && calculatedHours >= 0) {
+        setHoursWorked(calculatedHours.toString());
+      }
+    }
+  }, [timeFrom, timeTo, useTimeInput]);
 
   const handleSubmit = async () => {
     if (!user) return;
 
     const finalJobName = jobNameSelect === "custom" ? jobName.trim() : jobNameSelect.trim();
+    const finalHourlyPay = hourlyPaySelect === "custom" ? hourlyPay : hourlyPaySelect;
     
-    if (!finalJobName || !hoursWorked || !hourlyPay) {
+    if (!finalJobName || !hoursWorked || !finalHourlyPay) {
       toast.error("Please fill in all required fields");
       return;
+    }
+
+    // If using time input, validate times
+    if (useTimeInput) {
+      if (!timeFrom || !timeTo) {
+        toast.error("Please enter both time in and time out");
+        return;
+      }
+      const calculatedHours = calculateHoursFromTime(timeFrom, timeTo);
+      if (calculatedHours === null || calculatedHours < 0) {
+        toast.error("Invalid time range");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -91,17 +148,29 @@ export default function Timesheets() {
     const date = parseISO(workDate);
     const dayOfWeek = format(date, "EEEE");
 
+    const updateData: any = {
+      job_name: finalJobName,
+      hours_worked: parseFloat(hoursWorked),
+      hourly_pay: parseFloat(finalHourlyPay),
+      work_date: workDate,
+      day_of_week: dayOfWeek,
+    };
+
+    // Add time_from and time_to if using time input
+    if (useTimeInput && timeFrom && timeTo) {
+      updateData.time_from = timeFrom;
+      updateData.time_to = timeTo;
+    } else {
+      // Clear time fields if not using time input
+      updateData.time_from = null;
+      updateData.time_to = null;
+    }
+
     if (editingId) {
       // Update existing timesheet
       const { error } = await supabase
         .from("timesheets")
-        .update({
-          job_name: finalJobName,
-          hours_worked: parseFloat(hoursWorked),
-          hourly_pay: parseFloat(hourlyPay),
-          work_date: workDate,
-          day_of_week: dayOfWeek,
-        })
+        .update(updateData)
         .eq("id", editingId);
 
       setIsSubmitting(false);
@@ -119,11 +188,7 @@ export default function Timesheets() {
       // Insert new timesheet
       const { error } = await supabase.from("timesheets").insert({
         user_id: user.id,
-        job_name: finalJobName,
-        hours_worked: parseFloat(hoursWorked),
-        hourly_pay: parseFloat(hourlyPay),
-        work_date: workDate,
-        day_of_week: dayOfWeek,
+        ...updateData,
       });
 
       setIsSubmitting(false);
@@ -146,8 +211,25 @@ export default function Timesheets() {
     setJobName(timesheet.job_name);
     setJobNameSelect(isJobInList ? timesheet.job_name : "custom");
     setHoursWorked(timesheet.hours_worked.toString());
-    setHourlyPay(timesheet.hourly_pay.toString());
+    
+    const hourlyPayStr = timesheet.hourly_pay.toString();
+    const isHourlyPayInList = uniqueHourlyRates.includes(hourlyPayStr);
+    setHourlyPay(hourlyPayStr);
+    setHourlyPaySelect(isHourlyPayInList ? hourlyPayStr : "custom");
+    
     setWorkDate(timesheet.work_date);
+    
+    // Set time inputs if available
+    if (timesheet.time_from && timesheet.time_to) {
+      setTimeFrom(timesheet.time_from);
+      setTimeTo(timesheet.time_to);
+      setUseTimeInput(true);
+    } else {
+      setTimeFrom("");
+      setTimeTo("");
+      setUseTimeInput(false);
+    }
+    
     setShowAdd(true);
   };
 
@@ -171,6 +253,14 @@ export default function Timesheets() {
 
   // Get unique job names from existing timesheets
   const uniqueJobNames = Array.from(new Set(timesheets.map((ts) => ts.job_name))).sort();
+
+  // Get unique hourly pay rates from existing timesheets
+  const uniqueHourlyRates = Array.from(
+    new Set(timesheets.map((ts) => ts.hourly_pay.toString()))
+  )
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(String);
 
   // Calculate totals
   const now = new Date();
@@ -273,21 +363,109 @@ export default function Timesheets() {
               onChange={(e) => setWorkDate(e.target.value)}
               className="touch-input"
             />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                type="number"
-                placeholder="Hours"
-                value={hoursWorked}
-                onChange={(e) => setHoursWorked(e.target.value)}
-                className="touch-input"
-              />
-              <Input
-                type="number"
-                placeholder="$/hour"
-                value={hourlyPay}
-                onChange={(e) => setHourlyPay(e.target.value)}
-                className="touch-input"
-              />
+            
+            {/* Hours Input Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newMode = !useTimeInput;
+                    setUseTimeInput(newMode);
+                    if (!newMode) {
+                      // Switching to direct hours mode - clear time inputs
+                      setTimeFrom("");
+                      setTimeTo("");
+                    } else {
+                      // Switching to time input mode - clear hours if it was auto-calculated
+                      // Keep hours if user manually entered them
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+                    useTimeInput
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-secondary"
+                  )}
+                >
+                  {useTimeInput ? "Using Time In/Out" : "Enter Hours Directly"}
+                </button>
+              </div>
+
+              {useTimeInput ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Time In</label>
+                    <Input
+                      type="time"
+                      value={timeFrom}
+                      onChange={(e) => setTimeFrom(e.target.value)}
+                      className="touch-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Time Out</label>
+                    <Input
+                      type="time"
+                      value={timeTo}
+                      onChange={(e) => setTimeTo(e.target.value)}
+                      className="touch-input"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">
+                  Hours {useTimeInput && timeFrom && timeTo ? "(Auto-calculated)" : ""}
+                </label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="Hours (e.g., 6.5)"
+                  value={hoursWorked}
+                  onChange={(e) => setHoursWorked(e.target.value)}
+                  className="touch-input"
+                  readOnly={useTimeInput && timeFrom && timeTo}
+                />
+              </div>
+            </div>
+
+            {/* Hourly Rate Section */}
+            <div>
+              <Select
+                value={hourlyPaySelect || (editingId && hourlyPay ? "custom" : "")}
+                onValueChange={(value) => {
+                  setHourlyPaySelect(value);
+                  if (value !== "custom") {
+                    setHourlyPay(value);
+                  } else {
+                    setHourlyPay(editingId ? hourlyPay : "");
+                  }
+                }}
+              >
+                <SelectTrigger className="touch-input h-14">
+                  <SelectValue placeholder="Select hourly rate or enter custom" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueHourlyRates.map((rate) => (
+                    <SelectItem key={rate} value={rate}>
+                      ${rate}/hour
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom (enter new)</SelectItem>
+                </SelectContent>
+              </Select>
+              {hourlyPaySelect === "custom" && (
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter hourly rate ($/hour)"
+                  value={hourlyPay}
+                  onChange={(e) => setHourlyPay(e.target.value)}
+                  className="touch-input mt-3"
+                />
+              )}
             </div>
             <div className="flex gap-3">
               <Button
