@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Clock, DollarSign, Trash2, Pencil } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Plus, Clock, DollarSign, Trash2, Pencil, Calendar as CalendarIcon, List } from "lucide-react";
+import { format, parseISO, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TimesheetCalendar } from "@/components/timesheet/TimesheetCalendar";
+import { DayDetailSheet } from "@/components/timesheet/DayDetailSheet";
+import { EarningsStats } from "@/components/timesheet/EarningsStats";
 
 interface Timesheet {
   id: string;
@@ -19,6 +22,8 @@ interface Timesheet {
   day_of_week: string;
   time_from: string | null;
   time_to: string | null;
+  is_paid: boolean;
+  paid_date: string | null;
 }
 
 export default function Timesheets() {
@@ -28,6 +33,10 @@ export default function Timesheets() {
   const [isLoading, setIsLoading] = useState(true);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDayTimesheets, setSelectedDayTimesheets] = useState<Timesheet[]>([]);
+  const [showDayDetail, setShowDayDetail] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form state
@@ -251,6 +260,70 @@ export default function Timesheets() {
     }).format(amount);
   };
 
+  const handleTogglePaid = async (id: string, isPaid: boolean) => {
+    const { error } = await supabase
+      .from("timesheets")
+      .update({ 
+        is_paid: isPaid,
+        paid_date: isPaid ? format(new Date(), "yyyy-MM-dd") : null
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to update payment status");
+    } else {
+      toast.success(isPaid ? "Marked as paid" : "Marked as unpaid");
+      fetchTimesheets();
+      // Update selected day timesheets if sheet is open
+      if (showDayDetail && selectedDayTimesheets.length > 0) {
+        setSelectedDayTimesheets(prev => 
+          prev.map(ts => ts.id === id ? { ...ts, is_paid: isPaid } : ts)
+        );
+      }
+    }
+  };
+
+  const handleMarkAllPaid = async (ids: string[]) => {
+    const { error } = await supabase
+      .from("timesheets")
+      .update({ 
+        is_paid: true,
+        paid_date: format(new Date(), "yyyy-MM-dd")
+      })
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to update payment status");
+    } else {
+      toast.success(`Marked ${ids.length} entries as paid`);
+      fetchTimesheets();
+      setShowDayDetail(false);
+    }
+  };
+
+  const handleMarkDayPaid = async (ids: string[], isPaid: boolean) => {
+    const { error } = await supabase
+      .from("timesheets")
+      .update({ 
+        is_paid: isPaid,
+        paid_date: isPaid ? format(new Date(), "yyyy-MM-dd") : null
+      })
+      .in("id", ids);
+
+    if (error) {
+      toast.error("Failed to update payment status");
+    } else {
+      toast.success(isPaid ? `Marked ${ids.length} entries as paid` : `Marked ${ids.length} entries as unpaid`);
+      fetchTimesheets();
+    }
+  };
+
+  const handleSelectDay = (date: Date, dayTimesheets: Timesheet[]) => {
+    setSelectedDate(date);
+    setSelectedDayTimesheets(dayTimesheets);
+    setShowDayDetail(true);
+  };
+
   // Get unique job names from existing timesheets
   const uniqueJobNames = Array.from(new Set(timesheets.map((ts) => ts.job_name))).sort();
 
@@ -291,35 +364,39 @@ export default function Timesheets() {
       <header className="glass-header px-4 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Timesheets</h1>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center touch-feedback"
-          >
-            <Plus className="w-5 h-5 text-primary-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("calendar")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "calendar" ? "bg-background shadow-sm" : ""
+                }`}
+              >
+                <CalendarIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "list" ? "bg-background shadow-sm" : ""
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              onClick={() => setShowAdd(!showAdd)}
+              className="w-10 h-10 rounded-full bg-primary flex items-center justify-center touch-feedback"
+            >
+              <Plus className="w-5 h-5 text-primary-foreground" />
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="px-4 py-4 space-y-6">
-        {/* Quick Stats */}
-        <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
-          <div className="stat-card min-w-[160px]">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">This Month</span>
-            </div>
-            <span className="text-2xl font-bold">{totalMonthlyHours.toFixed(1)}h</span>
-          </div>
-          <div className="stat-card min-w-[160px]">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-4 h-4 text-success" />
-              <span className="text-sm text-muted-foreground">Earnings</span>
-            </div>
-            <span className="text-2xl font-bold text-success">
-              {formatCurrency(totalMonthlyEarnings)}
-            </span>
-          </div>
-        </div>
+        {/* Earnings Stats */}
+        <EarningsStats timesheets={monthlyTimesheets} formatCurrency={formatCurrency} />
 
         {/* Add/Edit Form */}
         {showAdd && (
@@ -495,7 +572,7 @@ export default function Timesheets() {
           </div>
         )}
 
-        {/* List */}
+        {/* View Content */}
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -518,32 +595,54 @@ export default function Timesheets() {
               Tap + to log your hours
             </p>
           </div>
+        ) : viewMode === "calendar" ? (
+          <TimesheetCalendar
+            timesheets={timesheets}
+            onTogglePaid={handleTogglePaid}
+            onMarkDayPaid={handleMarkDayPaid}
+            onSelectDay={handleSelectDay}
+            formatCurrency={formatCurrency}
+          />
         ) : (
           <div className="space-y-3">
             {timesheets.map((ts) => (
               <div key={ts.id} className="expense-item group">
-                <div className="w-10 h-10 rounded-xl bg-success/20 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-success" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  ts.is_paid ? "bg-success/20" : "bg-warning/20"
+                }`}>
+                  <Clock className={`w-5 h-5 ${ts.is_paid ? "text-success" : "text-warning"}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{ts.job_name}</p>
                   <p className="text-sm text-muted-foreground">
                     {format(parseISO(ts.work_date), "MMM d")} • {ts.day_of_week} • {ts.hours_worked}h
+                    {ts.is_paid && <span className="text-success ml-1">• Paid</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-success">
+                  <span className={`font-semibold ${ts.is_paid ? "text-success" : "text-warning"}`}>
                     +{formatCurrency(Number(ts.hours_worked) * Number(ts.hourly_pay))}
                   </span>
                   <button
+                    onClick={() => handleTogglePaid(ts.id, !ts.is_paid)}
+                    className="p-2 text-muted-foreground hover:text-success touch-feedback"
+                    title={ts.is_paid ? "Mark as unpaid" : "Mark as paid"}
+                  >
+                    {ts.is_paid ? (
+                      <DollarSign className="w-4 h-4 text-success" />
+                    ) : (
+                      <DollarSign className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
                     onClick={() => handleEdit(ts)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-primary touch-feedback"
+                    className="p-2 text-primary touch-feedback hover:bg-primary/10 rounded-lg transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteTimesheet(ts.id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-destructive touch-feedback"
+                    className="p-2 text-destructive touch-feedback hover:bg-destructive/10 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -553,6 +652,19 @@ export default function Timesheets() {
           </div>
         )}
       </div>
+
+      {/* Day Detail Sheet */}
+      <DayDetailSheet
+        open={showDayDetail}
+        onOpenChange={setShowDayDetail}
+        selectedDate={selectedDate}
+        timesheets={selectedDayTimesheets}
+        onTogglePaid={handleTogglePaid}
+        onMarkAllPaid={handleMarkAllPaid}
+        onEdit={handleEdit}
+        onDelete={deleteTimesheet}
+        formatCurrency={formatCurrency}
+      />
     </AppLayout>
   );
 }

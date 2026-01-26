@@ -201,7 +201,9 @@ export type Database = {
           hourly_pay: number
           hours_worked: number
           id: string
+          is_paid: boolean
           job_name: string
+          paid_date: string | null
           payment_frequency:
             | Database["public"]["Enums"]["payment_frequency"]
             | null
@@ -216,7 +218,9 @@ export type Database = {
           hourly_pay: number
           hours_worked: number
           id?: string
+          is_paid?: boolean
           job_name: string
+          paid_date?: string | null
           payment_frequency?:
             | Database["public"]["Enums"]["payment_frequency"]
             | null
@@ -231,7 +235,9 @@ export type Database = {
           hourly_pay?: number
           hours_worked?: number
           id?: string
+          is_paid?: boolean
           job_name?: string
+          paid_date?: string | null
           payment_frequency?:
             | Database["public"]["Enums"]["payment_frequency"]
             | null
