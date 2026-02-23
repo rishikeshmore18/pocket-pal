@@ -1,4 +1,4 @@
-import { Wallet, TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard } from "lucide-react";
 import { StatCard } from "./StatCard";
 
 interface QuickStatsProps {
@@ -6,9 +6,10 @@ interface QuickStatsProps {
   monthlyEarnings: number;
   monthlyExpenses: number;
   netSavings: number;
+  totalDebt: number;
 }
 
-export function QuickStats({ totalBalance, monthlyEarnings, monthlyExpenses, netSavings }: QuickStatsProps) {
+export function QuickStats({ totalBalance, monthlyEarnings, monthlyExpenses, netSavings, totalDebt }: QuickStatsProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -41,6 +42,12 @@ export function QuickStats({ totalBalance, monthlyEarnings, monthlyExpenses, net
         label="Net Savings"
         value={formatCurrency(netSavings)}
         variant={netSavings >= 0 ? "income" : "expense"}
+      />
+      <StatCard
+        icon={CreditCard}
+        label="Total Debt"
+        value={formatCurrency(totalDebt)}
+        variant="expense"
       />
     </div>
   );
