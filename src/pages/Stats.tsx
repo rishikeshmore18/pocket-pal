@@ -43,9 +43,20 @@ export default function Stats() {
         return acc;
       }, {} as Record<string, number>);
 
+      // Use distinct, accessible colors with good contrast
       const colors = [
-        "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
-        "#f43f5e", "#ef4444", "#f97316", "#eab308", "#22c55e"
+        "#3b82f6", // Blue
+        "#10b981", // Green
+        "#f59e0b", // Amber
+        "#ef4444", // Red
+        "#8b5cf6", // Purple
+        "#06b6d4", // Cyan
+        "#f97316", // Orange
+        "#ec4899", // Pink
+        "#84cc16", // Lime
+        "#6366f1", // Indigo
+        "#14b8a6", // Teal
+        "#a855f7", // Violet
       ];
 
       const data = Object.entries(categoryTotals).map(([cat, value], i) => ({
@@ -146,17 +157,17 @@ export default function Stats() {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-4">
+                  <div className="grid grid-cols-1 gap-2 mt-4">
                     {categoryData.map((cat, i) => (
-                      <div key={i} className="flex items-center gap-2">
+                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <div
-                          className="w-3 h-3 rounded-full"
+                          className="w-4 h-4 rounded-full flex-shrink-0 border-2 border-background"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="text-sm text-muted-foreground truncate">
+                        <span className="text-sm font-medium flex-1 truncate">
                           {cat.name}
                         </span>
-                        <span className="text-sm font-medium ml-auto">
+                        <span className="text-sm font-semibold ml-auto">
                           {formatCurrency(cat.value)}
                         </span>
                       </div>
