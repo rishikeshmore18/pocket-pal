@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, CreditCard, Trash2, Minus } from "lucide-react";
+import { ArrowLeft, Plus, CreditCard, Trash2, Minus, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,9 @@ export default function Debts() {
   const [isLoading, setIsLoading] = useState(true);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingDebtId, setEditingDebtId] = useState<string | null>(null);
+  const [editingAmount, setEditingAmount] = useState<string>("");
+  const [isUpdatingAmount, setIsUpdatingAmount] = useState(false);
 
   // Form state
   const [debtName, setDebtName] = useState("");
@@ -117,6 +120,42 @@ export default function Debts() {
     }
   };
 
+  const handleEditAmount = (debt: Debt) => {
+    setEditingDebtId(debt.id);
+    setEditingAmount(debt.current_amount.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDebtId(null);
+    setEditingAmount("");
+  };
+
+  const handleUpdateAmount = async (debtId: string) => {
+    if (!editingAmount || isNaN(parseFloat(editingAmount)) || parseFloat(editingAmount) < 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    setIsUpdatingAmount(true);
+
+    const { error } = await supabase
+      .from("debts")
+      .update({ current_amount: parseFloat(editingAmount) })
+      .eq("id", debtId);
+
+    setIsUpdatingAmount(false);
+
+    if (error) {
+      toast.error("Failed to update amount");
+      console.error(error);
+    } else {
+      toast.success("Amount updated");
+      setEditingDebtId(null);
+      setEditingAmount("");
+      fetchDebts();
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -187,31 +226,97 @@ export default function Debts() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteDebt(debt.id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {editingDebtId === debt.id ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateAmount(debt.id)}
+                          disabled={isUpdatingAmount}
+                          className="p-2 text-success touch-feedback"
+                          title="Save"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={isUpdatingAmount}
+                          className="p-2 text-muted-foreground touch-feedback"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleEditAmount(debt)}
+                          className="p-2 text-primary touch-feedback hover:bg-primary/10 rounded-lg transition-colors"
+                          title="Edit amount"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteDebt(debt.id)}
+                          className="p-2 text-destructive touch-feedback hover:bg-destructive/10 rounded-lg transition-colors"
+                          title="Delete debt"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-center text-destructive mb-4">
-                  {formatCurrency(Number(debt.current_amount))}
-                </p>
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => updateDebtAmount(debt.id, -100)}
-                    className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center touch-feedback"
-                  >
-                    <Minus className="w-5 h-5 text-success" />
-                  </button>
-                  <span className="text-sm text-muted-foreground">±$100</span>
-                  <button
-                    onClick={() => updateDebtAmount(debt.id, 100)}
-                    className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center touch-feedback"
-                  >
-                    <Plus className="w-5 h-5 text-destructive" />
-                  </button>
-                </div>
+                {editingDebtId === debt.id ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 justify-center">
+                      <span className="text-2xl text-muted-foreground">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editingAmount}
+                        onChange={(e) => setEditingAmount(e.target.value)}
+                        className="text-2xl font-bold text-center border-2 border-primary focus-visible:ring-primary"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleUpdateAmount(debt.id);
+                          } else if (e.key === "Escape") {
+                            handleCancelEdit();
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button
+                      onClick={() => handleUpdateAmount(debt.id)}
+                      disabled={isUpdatingAmount}
+                      className="w-full h-10"
+                      size="sm"
+                    >
+                      {isUpdatingAmount ? "Updating..." : "Save Amount"}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-center text-destructive mb-4">
+                      {formatCurrency(Number(debt.current_amount))}
+                    </p>
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        onClick={() => updateDebtAmount(debt.id, -100)}
+                        className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center touch-feedback"
+                      >
+                        <Minus className="w-5 h-5 text-success" />
+                      </button>
+                      <span className="text-sm text-muted-foreground">±$100</span>
+                      <button
+                        onClick={() => updateDebtAmount(debt.id, 100)}
+                        className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center touch-feedback"
+                      >
+                        <Plus className="w-5 h-5 text-destructive" />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

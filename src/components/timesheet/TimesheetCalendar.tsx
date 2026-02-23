@@ -28,6 +28,7 @@ interface TimesheetCalendarProps {
 export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onSelectDay, formatCurrency }: TimesheetCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [markMode, setMarkMode] = useState<"paid" | "unpaid" | null>(null);
+  const [selectedDayIds, setSelectedDayIds] = useState<Set<string>>(new Set());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -65,42 +66,104 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onS
     if (!dayTimesheets.length) return;
     
     if (markMode) {
-      const ids = dayTimesheets.map(ts => ts.id);
-      onMarkDayPaid(ids, markMode === "paid");
+      // Toggle selection for this day
+      const dayKey = format(day, "yyyy-MM-dd");
+      setSelectedDayIds(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(dayKey)) {
+          newSet.delete(dayKey);
+        } else {
+          newSet.add(dayKey);
+        }
+        return newSet;
+      });
     } else {
       onSelectDay(day, dayTimesheets);
     }
   };
 
+  const handleStartMarkMode = (mode: "paid" | "unpaid") => {
+    setMarkMode(mode);
+    setSelectedDayIds(new Set());
+  };
+
+  const handleDone = () => {
+    if (selectedDayIds.size === 0) {
+      setMarkMode(null);
+      setSelectedDayIds(new Set());
+      return;
+    }
+
+    // Get all timesheet IDs for selected days
+    const allSelectedIds: string[] = [];
+    selectedDayIds.forEach(dayKey => {
+      const dayDate = parseISO(dayKey);
+      const dayTimesheets = getTimesheetsForDay(dayDate);
+      dayTimesheets.forEach(ts => allSelectedIds.push(ts.id));
+    });
+
+    if (allSelectedIds.length > 0) {
+      onMarkDayPaid(allSelectedIds, markMode === "paid");
+    }
+
+    setMarkMode(null);
+    setSelectedDayIds(new Set());
+  };
+
+  const handleCancelMarkMode = () => {
+    setMarkMode(null);
+    setSelectedDayIds(new Set());
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border p-4">
       {/* Mark Mode Buttons */}
-      <div className="flex gap-2 mb-4">
-        <Button
-          variant={markMode === "paid" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMarkMode(markMode === "paid" ? null : "paid")}
-          className={cn(
-            "flex-1",
-            markMode === "paid" && "bg-success hover:bg-success/90"
-          )}
-        >
-          <DollarSign className="w-4 h-4 mr-1" />
-          {markMode === "paid" ? "Tap days to mark paid" : "Mark as Paid"}
-        </Button>
-        <Button
-          variant={markMode === "unpaid" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMarkMode(markMode === "unpaid" ? null : "unpaid")}
-          className={cn(
-            "flex-1",
-            markMode === "unpaid" && "bg-warning hover:bg-warning/90 text-warning-foreground"
-          )}
-        >
-          <X className="w-4 h-4 mr-1" />
-          {markMode === "unpaid" ? "Tap days to unmark" : "Mark as Unpaid"}
-        </Button>
-      </div>
+      {markMode === null ? (
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleStartMarkMode("paid")}
+            className="flex-1"
+          >
+            <DollarSign className="w-4 h-4 mr-1" />
+            Mark as Paid
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleStartMarkMode("unpaid")}
+            className="flex-1"
+          >
+            <X className="w-4 h-4 mr-1" />
+            Mark as Unpaid
+          </Button>
+        </div>
+      ) : (
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancelMarkMode}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleDone}
+            disabled={selectedDayIds.size === 0}
+            className={cn(
+              "flex-1",
+              markMode === "paid" && "bg-success hover:bg-success/90",
+              markMode === "unpaid" && "bg-warning hover:bg-warning/90 text-warning-foreground"
+            )}
+          >
+            Done ({selectedDayIds.size} selected)
+          </Button>
+        </div>
+      )}
 
       {markMode && (
         <div className={cn(
@@ -108,8 +171,8 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onS
           markMode === "paid" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
         )}>
           {markMode === "paid" 
-            ? "Tap on any day with entries to mark all as paid" 
-            : "Tap on any day with entries to mark all as unpaid"}
+            ? "Tap on days to select them, then click Done to mark all as paid" 
+            : "Tap on days to select them, then click Done to mark all as unpaid"}
         </div>
       )}
 
@@ -157,6 +220,8 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onS
           const allPaid = isAllPaid(dayTimesheets);
           const somePaid = hasAnyPaid(dayTimesheets);
           const isToday = isSameDay(day, new Date());
+          const dayKey = format(day, "yyyy-MM-dd");
+          const isSelected = selectedDayIds.has(dayKey);
 
           return (
             <button
@@ -171,7 +236,8 @@ export function TimesheetCalendar({ timesheets, onTogglePaid, onMarkDayPaid, onS
                 !hasEntries && "opacity-50",
                 markMode && hasEntries && "cursor-pointer hover:scale-105",
                 markMode === "paid" && hasEntries && !allPaid && "ring-2 ring-success/50",
-                markMode === "unpaid" && hasEntries && allPaid && "ring-2 ring-warning/50"
+                markMode === "unpaid" && hasEntries && allPaid && "ring-2 ring-warning/50",
+                isSelected && "ring-2 ring-primary ring-offset-2"
               )}
             >
               <span className={cn(
