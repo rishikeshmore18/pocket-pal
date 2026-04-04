@@ -57,7 +57,7 @@ interface NewFixedExpense {
   name: string;
   amount: string;
   category: string;
-  due_day: string;
+  due_date: Date | undefined;
 }
 
 interface NewCard {
