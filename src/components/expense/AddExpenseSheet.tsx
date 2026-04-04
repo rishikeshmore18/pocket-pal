@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ interface AddExpenseSheetProps {
 }
 
 export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: AddExpenseSheetProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<string>("other");
@@ -35,19 +37,37 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
   const [notes, setNotes] = useState("");
   const [showNotes, setShowNotes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [creditCards, setCreditCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   useEffect(() => {
-    if (editingExpense && isOpen) {
-      setAmount(editingExpense.amount.toString());
-      setCategory(editingExpense.category);
-      setPaymentMethod(editingExpense.payment_method);
-      setExpenseName(editingExpense.expense_name);
-      setNotes(editingExpense.notes || "");
-      setShowNotes(!!editingExpense.notes);
-    } else if (isOpen) {
-      resetForm();
-    }
-  }, [editingExpense, isOpen]);
+    const loadSheetData = async () => {
+      if (!isOpen) return;
+
+      if (editingExpense) {
+        setAmount(editingExpense.amount.toString());
+        setCategory(editingExpense.category);
+        setPaymentMethod(editingExpense.payment_method);
+        setExpenseName(editingExpense.expense_name);
+        setNotes(editingExpense.notes || "");
+        setShowNotes(!!editingExpense.notes);
+        setSelectedCardId((editingExpense as any).card_id || null);
+        setIsRecurring((editingExpense as any).is_recurring || false);
+      } else {
+        resetForm();
+        if (user) {
+          const { data: cards } = await (supabase as any)
+            .from("credit_cards")
+            .select("id, card_name")
+            .eq("user_id", user.id);
+          setCreditCards(cards || []);
+        }
+      }
+    };
+
+    loadSheetData();
+  }, [editingExpense, isOpen, user]);
 
   const handleSubmit = async () => {
     if (!user) {
@@ -76,6 +96,8 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
           category: category as any,
           amount: parseFloat(amount),
           payment_method: paymentMethod as any,
+          card_id: paymentMethod === "credit" && selectedCardId ? selectedCardId : null,
+          is_recurring: isRecurring,
           notes: notes.trim() || null,
         })
         .eq("id", editingExpense.id);
@@ -97,6 +119,9 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
         category: category as any,
         amount: parseFloat(amount),
         payment_method: paymentMethod as any,
+        card_id: paymentMethod === "credit" && selectedCardId ? selectedCardId : null,
+        is_recurring: isRecurring,
+        is_fixed: isRecurring,
         notes: notes.trim() || null,
       });
 
@@ -106,6 +131,30 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
         toast.error("Failed to add expense");
         console.error(error);
         return;
+      }
+
+      if (selectedCardId && paymentMethod === "credit") {
+        const { data: cardData } = await (supabase as any)
+          .from("credit_cards")
+          .select("current_outstanding")
+          .eq("id", selectedCardId)
+          .single();
+        const newOutstanding = Number(cardData?.current_outstanding || 0) + parseFloat(amount);
+        await (supabase as any)
+          .from("credit_cards")
+          .update({ current_outstanding: newOutstanding })
+          .eq("id", selectedCardId);
+      }
+
+      if (isRecurring) {
+        await (supabase as any).from("fixed_expenses").insert({
+          user_id: user.id,
+          expense_name: expenseName.trim(),
+          amount: parseFloat(amount),
+          category: category,
+          due_day: new Date().getDate(),
+          is_active: true,
+        });
       }
 
       toast.success("Expense added successfully");
@@ -123,6 +172,8 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
     setExpenseName("");
     setNotes("");
     setShowNotes(false);
+    setSelectedCardId(null);
+    setIsRecurring(false);
   };
 
   if (!isOpen) return null;
@@ -190,13 +241,13 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
           {/* Payment Method */}
           <div>
             <p className="text-sm text-muted-foreground mb-3">Payment Method</p>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_METHODS.slice(0, 3).map((method) => (
+            <div className="flex flex-wrap gap-2">
+              {PAYMENT_METHODS.map((method) => (
                 <button
                   key={method.value}
                   onClick={() => setPaymentMethod(method.value)}
                   className={cn(
-                    "h-12 rounded-xl border-2 font-medium transition-all touch-feedback",
+                    "flex-1 min-w-[30%] h-12 rounded-xl border-2 font-medium transition-all touch-feedback",
                     paymentMethod === method.value
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-secondary text-secondary-foreground"
@@ -208,6 +259,41 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
             </div>
           </div>
 
+          {paymentMethod === "credit" && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Which card?</p>
+              {creditCards.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No cards added.{" "}
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate("/settings");
+                    }}
+                    className="text-primary underline"
+                  >
+                    Add in Settings
+                  </button>
+                </p>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+                  {creditCards.map((card) => (
+                    <button
+                      key={card.id}
+                      onClick={() => setSelectedCardId(card.id)}
+                      className={cn(
+                        "category-chip touch-feedback whitespace-nowrap",
+                        selectedCardId === card.id && "active"
+                      )}
+                    >
+                      {card.card_name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Expense Name */}
           <div>
             <Input
@@ -216,6 +302,24 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
               onChange={(e) => setExpenseName(e.target.value)}
               className="touch-input"
             />
+          </div>
+
+          <div className="flex items-center justify-between py-1">
+            <p className="text-sm text-muted-foreground">Repeat every month?</p>
+            <button
+              onClick={() => setIsRecurring((r) => !r)}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative",
+                isRecurring ? "bg-primary" : "bg-secondary border border-border"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                  isRecurring ? "translate-x-6" : "translate-x-0.5"
+                )}
+              />
+            </button>
           </div>
 
           {/* Notes */}
