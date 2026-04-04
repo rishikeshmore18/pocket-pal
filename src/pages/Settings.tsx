@@ -572,8 +572,7 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{expense.expense_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Due on {expense.due_day}
-                          {getDaySuffix(expense.due_day)}
+                          Due: {expense.due_date ? format(parseISO(expense.due_date), "MMM d, yyyy") : `${expense.due_day}${getDaySuffix(expense.due_day)}`}
                         </p>
                       </div>
                       <p className="font-semibold text-right">{formatAmount(expense.amount, currencySymbol)}</p>
