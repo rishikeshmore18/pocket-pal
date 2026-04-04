@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ArrowLeft, Plus, Trash2, Pencil, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +35,7 @@ interface FixedExpense {
   expense_name: string;
   amount: number;
   category: string;
+  due_date: string;
   due_day: number;
   is_active: boolean;
 }
@@ -54,7 +57,7 @@ interface NewFixedExpense {
   name: string;
   amount: string;
   category: string;
-  due_day: string;
+  due_date: Date | undefined;
 }
 
 interface NewCard {
@@ -114,7 +117,7 @@ export default function Settings() {
     name: "",
     amount: "",
     category: "other",
-    due_day: "",
+    due_date: undefined,
   });
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
@@ -293,14 +296,8 @@ export default function Settings() {
   const handleAddFixed = async () => {
     if (!user) return;
 
-    if (!newFixed.name.trim() || !newFixed.amount || !newFixed.due_day) {
+    if (!newFixed.name.trim() || !newFixed.amount || !newFixed.due_date) {
       toast.error("Please fill in all required fields");
-      return;
-    }
-
-    const dueDay = parseInt(newFixed.due_day, 10);
-    if (Number.isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
-      toast.error("Due day must be between 1 and 31");
       return;
     }
 
@@ -310,11 +307,15 @@ export default function Settings() {
       return;
     }
 
+    const dueDateStr = format(newFixed.due_date, "yyyy-MM-dd");
+    const dueDay = newFixed.due_date.getDate();
+
     const { error } = await (supabase as any).from("fixed_expenses").insert({
       user_id: user.id,
       expense_name: newFixed.name.trim(),
       amount,
       category: newFixed.category,
+      due_date: dueDateStr,
       due_day: dueDay,
     });
 
@@ -327,7 +328,7 @@ export default function Settings() {
       name: "",
       amount: "",
       category: "other",
-      due_day: "",
+      due_date: undefined,
     });
     setShowAddFixed(false);
     toast.success("Fixed bill added");
@@ -571,8 +572,7 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{expense.expense_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Due on {expense.due_day}
-                          {getDaySuffix(expense.due_day)}
+                          Due: {expense.due_date ? format(parseISO(expense.due_date), "MMM d, yyyy") : `${expense.due_day}${getDaySuffix(expense.due_day)}`}
                         </p>
                       </div>
                       <p className="font-semibold text-right">{formatAmount(expense.amount, currencySymbol)}</p>
@@ -624,14 +624,32 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <Input
-                    type="number"
-                    placeholder="Due day (1-31)"
-                    value={newFixed.due_day}
-                    min={1}
-                    max={31}
-                    onChange={(e) => setNewFixed((prev) => ({ ...prev, due_day: e.target.value }))}
-                  />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Due Date</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-12",
+                            !newFixed.due_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {newFixed.due_date ? format(newFixed.due_date, "PPP") : "Pick a due date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={newFixed.due_date}
+                          onSelect={(date) => setNewFixed((prev) => ({ ...prev, due_date: date || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <Button onClick={handleAddFixed} className="w-full h-12">
                     Add Bill
                   </Button>

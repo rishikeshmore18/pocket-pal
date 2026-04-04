@@ -214,7 +214,7 @@ export default function Dashboard() {
   const projectedFinal = Math.max(
     projectedMonthEnd,
     stats.monthlyExpenses +
-      fixedExpensesList.filter((f) => f.due_day > getDate(now)).reduce((s, f) => s + Number(f.amount), 0),
+      fixedExpensesList.filter((f) => (f.due_day || new Date(f.due_date).getDate()) > getDate(now)).reduce((s, f) => s + Number(f.amount), 0),
   );
   const predictedSavings = monthlyIncome - projectedFinal;
   const dailyBudgetLeft = daysLeft > 0 ? (totalBudget - stats.monthlyExpenses) / daysLeft : 0;
@@ -476,14 +476,14 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">All bills paid this month ✅</p>
           ) : (
             upcomingBills
-              .sort((a, b) => a.due_day - b.due_day)
+              .sort((a, b) => (a.due_day || new Date(a.due_date).getDate()) - (b.due_day || new Date(b.due_date).getDate()))
               .map((bill) => (
                 <div key={bill.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[bill.category] }} />
                     <div>
                       <p className="font-medium text-sm">{bill.expense_name}</p>
-                      <p className="text-xs text-muted-foreground">Due {bill.due_day}th</p>
+                      <p className="text-xs text-muted-foreground">Due {bill.due_date ? format(new Date(bill.due_date), "MMM d") : `${bill.due_day}th`}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

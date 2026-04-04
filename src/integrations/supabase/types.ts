@@ -250,7 +250,8 @@ export type Database = {
           amount: number
           category: string
           created_at: string | null
-          due_day: number
+          due_date: string
+          due_day: number | null
           expense_name: string
           id: string
           is_active: boolean
@@ -260,7 +261,8 @@ export type Database = {
           amount: number
           category?: string
           created_at?: string | null
-          due_day: number
+          due_date: string
+          due_day?: number | null
           expense_name: string
           id?: string
           is_active?: boolean
@@ -270,7 +272,8 @@ export type Database = {
           amount?: number
           category?: string
           created_at?: string | null
-          due_day?: number
+          due_date?: string
+          due_day?: number | null
           expense_name?: string
           id?: string
           is_active?: boolean
