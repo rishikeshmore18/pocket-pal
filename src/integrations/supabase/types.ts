@@ -214,6 +214,7 @@ export type Database = {
           date_time: string | null
           expense_name: string
           id: string
+          is_fixed: boolean
           notes: string | null
           payment_method: Database["public"]["Enums"]["payment_method_type"]
           user_id: string
@@ -225,6 +226,7 @@ export type Database = {
           date_time?: string | null
           expense_name: string
           id?: string
+          is_fixed?: boolean
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method_type"]
           user_id: string
@@ -236,6 +238,7 @@ export type Database = {
           date_time?: string | null
           expense_name?: string
           id?: string
+          is_fixed?: boolean
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method_type"]
           user_id?: string
