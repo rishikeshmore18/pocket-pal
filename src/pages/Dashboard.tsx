@@ -483,7 +483,7 @@ export default function Dashboard() {
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_COLORS[bill.category] }} />
                     <div>
                       <p className="font-medium text-sm">{bill.expense_name}</p>
-                      <p className="text-xs text-muted-foreground">Due {bill.due_day}th</p>
+                      <p className="text-xs text-muted-foreground">Due {bill.due_date ? format(new Date(bill.due_date), "MMM d") : `${bill.due_day}th`}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
