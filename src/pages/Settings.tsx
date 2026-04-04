@@ -624,14 +624,32 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <Input
-                    type="number"
-                    placeholder="Due day (1-31)"
-                    value={newFixed.due_day}
-                    min={1}
-                    max={31}
-                    onChange={(e) => setNewFixed((prev) => ({ ...prev, due_day: e.target.value }))}
-                  />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Due Date</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-12",
+                            !newFixed.due_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {newFixed.due_date ? format(newFixed.due_date, "PPP") : "Pick a due date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={newFixed.due_date}
+                          onSelect={(date) => setNewFixed((prev) => ({ ...prev, due_date: date || undefined }))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <Button onClick={handleAddFixed} className="w-full h-12">
                     Add Bill
                   </Button>
