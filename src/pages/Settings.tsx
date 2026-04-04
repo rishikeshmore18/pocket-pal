@@ -117,7 +117,7 @@ export default function Settings() {
     name: "",
     amount: "",
     category: "other",
-    due_day: "",
+    due_date: undefined,
   });
 
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
