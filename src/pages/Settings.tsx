@@ -143,11 +143,11 @@ export default function Settings() {
 
     const initialBudgetLimits = createInitialBudgetLimits();
 
-    const { data: incomeData, error: incomeError } = await supabase
-      .from("income_settings" as any)
+    const { data: incomeData, error: incomeError } = await (supabase as any)
+      .from("income_settings")
       .select("monthly_income")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (incomeError && incomeError.code !== "PGRST116") {
       toast.error("Failed to load income settings");
@@ -163,7 +163,7 @@ export default function Settings() {
       .from("profiles")
       .select("currency_symbol")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError && profileError.code !== "PGRST116") {
       toast.error("Failed to load profile settings");
@@ -171,8 +171,8 @@ export default function Settings() {
 
     setCurrencySymbol(profileData?.currency_symbol || "$");
 
-    const { data: budgetData, error: budgetError } = await supabase
-      .from("budget_limits" as any)
+    const { data: budgetData, error: budgetError } = await (supabase as any)
+      .from("budget_limits")
       .select("category, default_limit, month_override")
       .eq("user_id", user.id);
 
@@ -188,8 +188,8 @@ export default function Settings() {
       setBudgetLimits(initialBudgetLimits);
     }
 
-    const { data: fixedData, error: fixedError } = await supabase
-      .from("fixed_expenses" as any)
+    const { data: fixedData, error: fixedError } = await (supabase as any)
+      .from("fixed_expenses")
       .select("*")
       .eq("user_id", user.id)
       .order("due_day", { ascending: true });
@@ -197,11 +197,11 @@ export default function Settings() {
     if (fixedError) {
       toast.error("Failed to load fixed bills");
     } else {
-      setFixedExpenses((fixedData || []) as FixedExpense[]);
+      setFixedExpenses((fixedData || []) as unknown as FixedExpense[]);
     }
 
-    const { data: cardsData, error: cardsError } = await supabase
-      .from("credit_cards" as any)
+    const { data: cardsData, error: cardsError } = await (supabase as any)
+      .from("credit_cards")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -209,7 +209,7 @@ export default function Settings() {
     if (cardsError) {
       toast.error("Failed to load credit cards");
     } else {
-      setCreditCards((cardsData || []) as CreditCard[]);
+      setCreditCards((cardsData || []) as unknown as CreditCard[]);
     }
 
     setIsLoading(false);
@@ -230,8 +230,8 @@ export default function Settings() {
       return;
     }
 
-    const { error: incomeError } = await supabase
-      .from("income_settings" as any)
+    const { error: incomeError } = await (supabase as any)
+      .from("income_settings")
       .upsert(
         {
           user_id: user.id,
@@ -267,7 +267,7 @@ export default function Settings() {
       const categoryBudget = budgetLimits[category.value] || { default_limit: "", month_override: "" };
       const hasOverride = !!categoryBudget.month_override;
 
-      return supabase.from("budget_limits" as any).upsert(
+      return (supabase as any).from("budget_limits").upsert(
         {
           user_id: user.id,
           category: category.value,
@@ -280,7 +280,7 @@ export default function Settings() {
     });
 
     const results = await Promise.all(operations);
-    const failed = results.find((result) => result.error);
+    const failed = results.find((result: any) => result.error);
 
     if (failed?.error) {
       toast.error("Failed to save budgets");
@@ -310,7 +310,7 @@ export default function Settings() {
       return;
     }
 
-    const { error } = await supabase.from("fixed_expenses" as any).insert({
+    const { error } = await (supabase as any).from("fixed_expenses").insert({
       user_id: user.id,
       expense_name: newFixed.name.trim(),
       amount,
@@ -335,7 +335,7 @@ export default function Settings() {
   };
 
   const deleteFixedExpense = async (id: string) => {
-    const { error } = await supabase.from("fixed_expenses" as any).delete().eq("id", id);
+    const { error } = await (supabase as any).from("fixed_expenses").delete().eq("id", id);
 
     if (error) {
       toast.error("Failed to remove fixed bill");
@@ -375,7 +375,7 @@ export default function Settings() {
       }
     }
 
-    const { error } = await supabase.from("credit_cards" as any).insert({
+    const { error } = await (supabase as any).from("credit_cards").insert({
       user_id: user.id,
       card_name: newCard.card_name.trim(),
       credit_limit: creditLimit,
@@ -410,7 +410,7 @@ export default function Settings() {
   };
 
   const deleteCard = async (id: string) => {
-    const { error } = await supabase.from("credit_cards" as any).delete().eq("id", id);
+    const { error } = await (supabase as any).from("credit_cards").delete().eq("id", id);
 
     if (error) {
       toast.error("Failed to remove card");
@@ -475,15 +475,15 @@ export default function Settings() {
                       $
                     </button>
                     <button
-                      onClick={() => setCurrencySymbol("?")}
+                      onClick={() => setCurrencySymbol("\u20B9")}
                       className={cn(
                         "h-10 rounded-lg border-2 text-sm font-medium transition-all",
-                        currencySymbol === "?"
+                        currencySymbol === "\u20B9"
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-secondary",
                       )}
                     >
-                      ?
+                      {"\u20B9"}
                     </button>
                   </div>
                 </div>
@@ -544,7 +544,7 @@ export default function Settings() {
                       </div>
 
                       {categoryBudget.month_override ? (
-                        <p className="text-xs text-primary">?? override active</p>
+                        <p className="text-xs text-primary">Override active</p>
                       ) : null}
                     </div>
                   );
@@ -657,10 +657,10 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{card.card_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          Billing day: {card.billing_day} • Limit: {formatAmount(card.credit_limit, currencySymbol)}
+                          Billing day: {card.billing_day} &bull; Limit: {formatAmount(card.credit_limit, currencySymbol)}
                         </p>
                         {card.is_zero_apr ? (
-                          <span className="inline-flex mt-2 text-xs px-2 py-1 rounded-full bg-success/20 text-success">
+                          <span className="inline-flex mt-2 text-xs px-2 py-1 rounded-full bg-primary/20 text-primary">
                             0% APR
                           </span>
                         ) : null}
@@ -735,7 +735,7 @@ export default function Settings() {
                     >
                       <div
                         className={cn(
-                          "w-5 h-5 rounded-full bg-white transition-transform m-0.5",
+                          "w-5 h-5 rounded-full bg-background transition-transform m-0.5",
                           newCard.is_zero_apr ? "translate-x-6" : "translate-x-0",
                         )}
                       />
