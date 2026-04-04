@@ -214,7 +214,7 @@ export default function Dashboard() {
   const projectedFinal = Math.max(
     projectedMonthEnd,
     stats.monthlyExpenses +
-      fixedExpensesList.filter((f) => f.due_day > getDate(now)).reduce((s, f) => s + Number(f.amount), 0),
+      fixedExpensesList.filter((f) => (f.due_day || new Date(f.due_date).getDate()) > getDate(now)).reduce((s, f) => s + Number(f.amount), 0),
   );
   const predictedSavings = monthlyIncome - projectedFinal;
   const dailyBudgetLeft = daysLeft > 0 ? (totalBudget - stats.monthlyExpenses) / daysLeft : 0;
