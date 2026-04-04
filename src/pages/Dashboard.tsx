@@ -476,7 +476,7 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground">All bills paid this month ✅</p>
           ) : (
             upcomingBills
-              .sort((a, b) => a.due_day - b.due_day)
+              .sort((a, b) => (a.due_day || new Date(a.due_date).getDate()) - (b.due_day || new Date(b.due_date).getDate()))
               .map((bill) => (
                 <div key={bill.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-3">
