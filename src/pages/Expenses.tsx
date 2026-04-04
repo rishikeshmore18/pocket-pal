@@ -8,6 +8,7 @@ import { AddExpenseSheet } from "@/components/expense/AddExpenseSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Expense {
@@ -61,11 +62,8 @@ export default function Expenses() {
       .lte("date_time", monthEnd)
       .order("date_time", { ascending: false });
 
-    if (filterCategory !== "all") query = query.eq("category", filterCategory);
-    if (filterPaymentMethod !== "all") query = query.eq("payment_method", filterPaymentMethod);
-    if (filterCardId !== "all") query = query.eq("card_id", filterCardId);
-    if (filterType === "fixed") query = query.eq("is_fixed", true);
-    if (filterType === "variable") query = query.eq("is_fixed", false);
+    if (filterCategory !== "all") query = query.eq("category", filterCategory as any);
+    if (filterPaymentMethod !== "all") query = query.eq("payment_method", filterPaymentMethod as any);
 
     const { data, error } = await query;
 
