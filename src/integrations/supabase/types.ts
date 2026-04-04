@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_limits: {
+        Row: {
+          category: string
+          created_at: string | null
+          default_limit: number | null
+          id: string
+          month_override: number | null
+          override_month: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          default_limit?: number | null
+          id?: string
+          month_override?: number | null
+          override_month?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          default_limit?: number | null
+          id?: string
+          month_override?: number | null
+          override_month?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cash_account: {
         Row: {
           current_balance: number
@@ -59,6 +89,51 @@ export type Database = {
           id?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      credit_cards: {
+        Row: {
+          billing_day: number
+          card_name: string
+          created_at: string | null
+          credit_limit: number
+          current_outstanding: number
+          due_day: number | null
+          id: string
+          interest_rate: number | null
+          is_zero_apr: boolean
+          target_utilization: number
+          user_id: string
+          zero_apr_end_date: string | null
+        }
+        Insert: {
+          billing_day: number
+          card_name: string
+          created_at?: string | null
+          credit_limit?: number
+          current_outstanding?: number
+          due_day?: number | null
+          id?: string
+          interest_rate?: number | null
+          is_zero_apr?: boolean
+          target_utilization?: number
+          user_id: string
+          zero_apr_end_date?: string | null
+        }
+        Update: {
+          billing_day?: number
+          card_name?: string
+          created_at?: string | null
+          credit_limit?: number
+          current_outstanding?: number
+          due_day?: number | null
+          id?: string
+          interest_rate?: number | null
+          is_zero_apr?: boolean
+          target_utilization?: number
+          user_id?: string
+          zero_apr_end_date?: string | null
         }
         Relationships: []
       }
@@ -163,6 +238,63 @@ export type Database = {
           id?: string
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fixed_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          due_day: number
+          expense_name: string
+          id: string
+          is_active: boolean
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string | null
+          due_day: number
+          expense_name: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          due_day?: number
+          expense_name?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      income_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          monthly_income: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          monthly_income?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          monthly_income?: number
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
