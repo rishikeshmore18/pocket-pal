@@ -296,14 +296,8 @@ export default function Settings() {
   const handleAddFixed = async () => {
     if (!user) return;
 
-    if (!newFixed.name.trim() || !newFixed.amount || !newFixed.due_day) {
+    if (!newFixed.name.trim() || !newFixed.amount || !newFixed.due_date) {
       toast.error("Please fill in all required fields");
-      return;
-    }
-
-    const dueDay = parseInt(newFixed.due_day, 10);
-    if (Number.isNaN(dueDay) || dueDay < 1 || dueDay > 31) {
-      toast.error("Due day must be between 1 and 31");
       return;
     }
 
@@ -313,11 +307,15 @@ export default function Settings() {
       return;
     }
 
+    const dueDateStr = format(newFixed.due_date, "yyyy-MM-dd");
+    const dueDay = newFixed.due_date.getDate();
+
     const { error } = await (supabase as any).from("fixed_expenses").insert({
       user_id: user.id,
       expense_name: newFixed.name.trim(),
       amount,
       category: newFixed.category,
+      due_date: dueDateStr,
       due_day: dueDay,
     });
 
@@ -330,7 +328,7 @@ export default function Settings() {
       name: "",
       amount: "",
       category: "other",
-      due_day: "",
+      due_date: undefined,
     });
     setShowAddFixed(false);
     toast.success("Fixed bill added");
