@@ -43,13 +43,13 @@ export default function More() {
       icon: Tag,
       label: "Categories",
       description: "Custom expense categories",
-      onClick: () => toast.info("Coming soon!"),
+      onClick: () => navigate("/settings"),
     },
     {
       icon: Settings,
       label: "Settings",
       description: "App preferences",
-      onClick: () => toast.info("Coming soon!"),
+      onClick: () => navigate("/settings"),
     },
     {
       icon: HelpCircle,

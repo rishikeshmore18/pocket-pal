@@ -11,6 +11,7 @@ import Expenses from "./pages/Expenses";
 import Timesheets from "./pages/Timesheets";
 import Stats from "./pages/Stats";
 import More from "./pages/More";
+import Settings from "@/pages/Settings";
 import Accounts from "./pages/Accounts";
 import Debts from "./pages/Debts";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/timesheets" element={<Timesheets />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/more" element={<More />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="*" element={<NotFound />} />
