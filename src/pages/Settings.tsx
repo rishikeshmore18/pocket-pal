@@ -35,6 +35,7 @@ interface FixedExpense {
   expense_name: string;
   amount: number;
   category: string;
+  due_date: string;
   due_day: number;
   is_active: boolean;
 }
