@@ -8,6 +8,7 @@ import { AddExpenseSheet } from "@/components/expense/AddExpenseSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Expense {
