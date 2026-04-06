@@ -96,8 +96,7 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
           category: category as any,
           amount: parseFloat(amount),
           payment_method: paymentMethod as any,
-          card_id: paymentMethod === "credit" && selectedCardId ? selectedCardId : null,
-          is_recurring: isRecurring,
+          is_fixed: isRecurring,
           notes: notes.trim() || null,
         })
         .eq("id", editingExpense.id);
@@ -119,8 +118,6 @@ export function AddExpenseSheet({ isOpen, onClose, onSuccess, editingExpense }: 
         category: category as any,
         amount: parseFloat(amount),
         payment_method: paymentMethod as any,
-        card_id: paymentMethod === "credit" && selectedCardId ? selectedCardId : null,
-        is_recurring: isRecurring,
         is_fixed: isRecurring,
         notes: notes.trim() || null,
       });
