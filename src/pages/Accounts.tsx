@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { getCardPaymentObligation } from "@/lib/cardUtils";
 import { ACCOUNT_TYPES } from "@/lib/constants";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -490,13 +491,8 @@ export default function Accounts() {
               <div className="space-y-4">
                 {creditCards.map((card) => {
                   const isZeroApr = card.is_zero_apr && card.zero_apr_end_date;
-                  const strategyPayment = isZeroApr
-                    ? Math.max(
-                        0,
-                        Number(card.current_outstanding) - (Number(card.credit_limit) * Number(card.target_utilization) / 100),
-                      )
-                    : Number(card.current_outstanding);
-                  const freeFloat = Number(card.current_outstanding) - strategyPayment;
+                  const strategyPayment = getCardPaymentObligation(card);
+                  const freeFloat = Math.max(0, Number(card.current_outstanding) - strategyPayment);
                   const daysUntilExpiry = isZeroApr
                     ? Math.ceil((new Date(card.zero_apr_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
                     : null;

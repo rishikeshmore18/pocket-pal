@@ -51,6 +51,8 @@ interface CreditCard {
   zero_apr_end_date: string | null;
   target_utilization: number;
   current_outstanding: number;
+  minimum_payment_mode: boolean;
+  minimum_payment: number;
 }
 
 interface NewFixedExpense {
@@ -70,6 +72,8 @@ interface NewCard {
   zero_apr_end_date: string;
   target_utilization: string;
   current_outstanding: string;
+  minimum_payment_mode: boolean;
+  minimum_payment: string;
 }
 
 const createInitialBudgetLimits = (): Record<string, BudgetLimitState> => {
@@ -133,7 +137,14 @@ export default function Settings() {
     zero_apr_end_date: "",
     target_utilization: "30",
     current_outstanding: "0",
+    minimum_payment_mode: false,
+    minimum_payment: "0",
   });
+  const [payFrequency, setPayFrequency] = useState("weekly");
+  const [payDayOfWeek, setPayDayOfWeek] = useState(4);
+  const [payDayOfMonth, setPayDayOfMonth] = useState("");
+  const [lastPayDate, setLastPayDate] = useState("");
+  const [payAmount, setPayAmount] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -173,6 +184,26 @@ export default function Settings() {
     }
 
     setCurrencySymbol(profileData?.currency_symbol || "$");
+
+    const { data: payData, error: payError } = await (supabase as any)
+      .from("pay_schedule")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (payError && payError.code !== "PGRST116") {
+      toast.error("Failed to load pay schedule");
+    }
+
+    setPayFrequency(payData?.pay_frequency || "weekly");
+    setPayDayOfWeek(
+      payData?.pay_day_of_week === 0 || payData?.pay_day_of_week
+        ? Number(payData.pay_day_of_week)
+        : 4,
+    );
+    setPayDayOfMonth(payData?.pay_day_of_month ? String(payData.pay_day_of_month) : "");
+    setLastPayDate(payData?.last_pay_date || "");
+    setPayAmount(payData?.pay_amount ? String(payData.pay_amount) : "");
 
     const { data: budgetData, error: budgetError } = await (supabase as any)
       .from("budget_limits")
@@ -293,6 +324,41 @@ export default function Settings() {
     toast.success("Budgets saved");
   };
 
+  const handleSavePaySchedule = async () => {
+    if (!user) return;
+
+    const parsedPayDayOfMonth = parseInt(payDayOfMonth, 10);
+    if (payFrequency === "monthly" && (Number.isNaN(parsedPayDayOfMonth) || parsedPayDayOfMonth < 1 || parsedPayDayOfMonth > 31)) {
+      toast.error("Please enter a valid day of month");
+      return;
+    }
+
+    const parsedPayAmount = payAmount ? parseFloat(payAmount) : null;
+    if (payAmount && (parsedPayAmount === null || Number.isNaN(parsedPayAmount) || parsedPayAmount < 0)) {
+      toast.error("Please enter a valid pay amount");
+      return;
+    }
+
+    const { error } = await (supabase as any).from("pay_schedule").upsert(
+      {
+        user_id: user.id,
+        pay_frequency: payFrequency,
+        pay_day_of_week: payFrequency === "weekly" ? payDayOfWeek : null,
+        pay_day_of_month: payFrequency === "monthly" ? parsedPayDayOfMonth : null,
+        last_pay_date: lastPayDate || null,
+        pay_amount: parsedPayAmount,
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (error) {
+      toast.error("Failed to save pay schedule");
+      return;
+    }
+
+    toast.success("Pay schedule saved");
+  };
+
   const handleAddFixed = async () => {
     if (!user) return;
 
@@ -387,6 +453,8 @@ export default function Settings() {
       zero_apr_end_date: newCard.is_zero_apr && newCard.zero_apr_end_date ? newCard.zero_apr_end_date : null,
       target_utilization: newCard.target_utilization ? parseInt(newCard.target_utilization, 10) : 30,
       current_outstanding: newCard.current_outstanding ? parseFloat(newCard.current_outstanding) : 0,
+      minimum_payment_mode: newCard.minimum_payment_mode,
+      minimum_payment: newCard.minimum_payment ? parseFloat(newCard.minimum_payment) : 0,
     });
 
     if (error) {
@@ -404,6 +472,8 @@ export default function Settings() {
       zero_apr_end_date: "",
       target_utilization: "30",
       current_outstanding: "0",
+      minimum_payment_mode: false,
+      minimum_payment: "0",
     });
     setShowAddCard(false);
     toast.success("Card added");
@@ -666,6 +736,104 @@ export default function Settings() {
             </section>
 
             <section>
+              <h2 className="text-lg font-semibold mb-1">Pay Schedule</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                When do you get paid? We&apos;ll use this to time your bill payments.
+              </p>
+
+              <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setPayFrequency("weekly")}
+                    className={cn(
+                      "h-10 rounded-lg border-2 text-sm font-medium transition-all",
+                      payFrequency === "weekly"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary",
+                    )}
+                  >
+                    Weekly
+                  </button>
+                  <button
+                    onClick={() => setPayFrequency("monthly")}
+                    className={cn(
+                      "h-10 rounded-lg border-2 text-sm font-medium transition-all",
+                      payFrequency === "monthly"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary",
+                    )}
+                  >
+                    Monthly
+                  </button>
+                </div>
+
+                {payFrequency === "weekly" ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Which day do you get paid?</p>
+                    <div className="grid grid-cols-7 gap-1">
+                      {[
+                        { value: 0, label: "Sun" },
+                        { value: 1, label: "Mon" },
+                        { value: 2, label: "Tue" },
+                        { value: 3, label: "Wed" },
+                        { value: 4, label: "Thu" },
+                        { value: 5, label: "Fri" },
+                        { value: 6, label: "Sat" },
+                      ].map((day) => (
+                        <button
+                          key={day.value}
+                          onClick={() => setPayDayOfWeek(day.value)}
+                          className={cn(
+                            "h-9 rounded-lg border-2 text-xs font-medium transition-all",
+                            payDayOfWeek === day.value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-secondary",
+                          )}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Input
+                    type="number"
+                    placeholder="Day of month (e.g. 1, 15, 30)"
+                    value={payDayOfMonth}
+                    min={1}
+                    max={31}
+                    onChange={(e) => setPayDayOfMonth(e.target.value)}
+                    className="touch-input"
+                  />
+                )}
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Most recent pay date (helps calculate future paydays)
+                  </p>
+                  <Input
+                    type="date"
+                    value={lastPayDate}
+                    onChange={(e) => setLastPayDate(e.target.value)}
+                    className="touch-input"
+                  />
+                </div>
+
+                <Input
+                  type="number"
+                  placeholder="Pay amount per paycheck (optional)"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  className="touch-input"
+                />
+
+                <Button onClick={handleSavePaySchedule} className="w-full h-12">
+                  Save Pay Schedule
+                </Button>
+              </div>
+            </section>
+
+            <section>
               <h2 className="text-lg font-semibold mb-4">Credit Cards</h2>
 
               <div className="space-y-3">
@@ -677,11 +845,18 @@ export default function Settings() {
                         <p className="text-sm text-muted-foreground">
                           Billing day: {card.billing_day} &bull; Limit: {formatAmount(card.credit_limit, currencySymbol)}
                         </p>
-                        {card.is_zero_apr ? (
-                          <span className="inline-flex mt-2 text-xs px-2 py-1 rounded-full bg-primary/20 text-primary">
-                            0% APR
-                          </span>
-                        ) : null}
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          {card.is_zero_apr ? (
+                            <span className="inline-flex text-xs px-2 py-1 rounded-full bg-primary/20 text-primary">
+                              0% APR
+                            </span>
+                          ) : null}
+                          {card.minimum_payment_mode ? (
+                            <span className="inline-flex text-xs px-2 py-1 rounded-full bg-orange-900/40 text-orange-400 border border-orange-700">
+                              Min Pay
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-1">
@@ -759,6 +934,44 @@ export default function Settings() {
                       />
                     </button>
                   </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <div>
+                      <p className="text-sm font-medium">Minimum payment only?</p>
+                      <p className="text-xs text-muted-foreground">
+                        For cards where you can&apos;t maintain target utilization
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setNewCard((prev) => ({
+                          ...prev,
+                          minimum_payment_mode: !prev.minimum_payment_mode,
+                        }))
+                      }
+                      className={cn(
+                        "w-12 h-6 rounded-full transition-colors relative flex-shrink-0",
+                        newCard.minimum_payment_mode ? "bg-orange-500" : "bg-secondary border border-border",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                          newCard.minimum_payment_mode ? "translate-x-6" : "translate-x-0.5",
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {newCard.minimum_payment_mode ? (
+                    <Input
+                      type="number"
+                      placeholder="Minimum payment amount (e.g. 35)"
+                      value={newCard.minimum_payment}
+                      onChange={(e) => setNewCard((prev) => ({ ...prev, minimum_payment: e.target.value }))}
+                      className="touch-input"
+                    />
+                  ) : null}
 
                   {newCard.is_zero_apr ? (
                     <>
