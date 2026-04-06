@@ -137,6 +137,41 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_cycles: {
+        Row: {
+          card_id: string
+          created_at: string | null
+          end_date: string
+          id: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string | null
+          end_date: string
+          id?: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_cycles_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_categories: {
         Row: {
           category_name: string
@@ -209,41 +244,55 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          card_id: string | null
           category: Database["public"]["Enums"]["expense_category"]
           created_at: string | null
           date_time: string | null
           expense_name: string
           id: string
           is_fixed: boolean
+          is_recurring: boolean
           notes: string | null
           payment_method: Database["public"]["Enums"]["payment_method_type"]
           user_id: string
         }
         Insert: {
           amount: number
+          card_id?: string | null
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string | null
           date_time?: string | null
           expense_name: string
           id?: string
           is_fixed?: boolean
+          is_recurring?: boolean
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method_type"]
           user_id: string
         }
         Update: {
           amount?: number
+          card_id?: string | null
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string | null
           date_time?: string | null
           expense_name?: string
           id?: string
           is_fixed?: boolean
+          is_recurring?: boolean
           notes?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method_type"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fixed_expenses: {
         Row: {
